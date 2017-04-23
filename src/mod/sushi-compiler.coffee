@@ -1,4 +1,4 @@
-fs    = require "fs"
+fs    = require "fs-extra"
 path  = require 'path'
 NodePDF       = require "nodepdf"
 Multispinner  = require "multispinner"
@@ -51,9 +51,14 @@ module.exports =
         template_pwd = SushiTemplateLoader.template_pwd
         target_file = path.join template_pwd, "sushi"
 
-        if (fs.existsSync(target_file))
-          fs.unlinkSync(target_file)
-        fs.symlinkSync(working_dir, target_file)
+        if process.platform == 'win32'
+            if fs.existsSync(target_file)
+                fs.removeSync target_file
+            fs.copySync working_dir, target_file
+        else 
+            if fs.existsSync(target_file)
+                fs.unlinkSync target_file 
+            fs.symlinkSync working_dir, target_file
 
         app.use(express.static(template_pwd))
 

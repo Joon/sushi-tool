@@ -1,14 +1,18 @@
 async = require "async"
 bower = require "bower"
-fs    = require "fs"
+fs    = require "fs-extra"
 Git   = require "nodegit"
 os    = require "os"
 path  = require "path"
 home  = os.homedir()
 Multispinner = require "multispinner"
-tempalte_git_dir = ".sushi-tool/template-git"
+if (process.platform == 'win32') 
+    tempalte_git_dir = "sushi_tool/template-git"
+    template_dir = "sushi_tool/template"
+else
+    tempalte_git_dir = ".sushi-tool/template-git"
+    template_dir = ".sushi-tool/template"
 template_git_pwd = path.resolve(path.join(home, tempalte_git_dir))
-template_dir = ".sushi-tool/template"
 template_pwd = path.resolve(path.join(home, template_dir))
 prettyjson = require 'prettyjson'
 
@@ -35,18 +39,26 @@ module.exports =
       (internalCallback) ->
         Git.Repository.open (template_git_pwd)
         .then (repository) ->
-          repository.fetchAll()
-          .then ->
-            repository.mergeBranches("master", "origin/master")
-            .then (oid) ->
-              internalCallback()
+            repository.fetchAll()
+            .then ->
+                repository.mergeBranches("master", "origin/master")
+                .then (oid) ->
+                    internalCallback()
+        .catch (e) -> 
+            console.log "Error during GIT access: " + e
       , (internalCallback) ->
         downloadDependencies ->
-          if !fs.existsSync template_pwd
-            fs.symlinkSync path.join(template_git_pwd, "public"), template_pwd
-          if !fs.existsSync path.join(template_pwd, "_harp.json")
-            fs.symlinkSync path.join(template_git_pwd, "harp.json"), path.join(template_pwd, "_harp.json")
-          spinner.success('bower_dependencies')
+            if !fs.existsSync template_pwd
+                if process.platform == 'win32'
+                    fs.copySync path.join(template_git_pwd, "public"), template_pwd
+                else
+                    fs.symlinkSync path.join(template_git_pwd, "public"), template_pwd
+            if !fs.existsSync path.join(template_pwd, "_harp.json")
+                if process.platform == 'win32'
+                    fs.copySync(path.join(template_git_pwd, "harp.json"), path.join(template_pwd, "_harp.json"))
+                else
+                    fs.symlinkSync(path.join(template_git_pwd, "harp.json"), path.join(template_pwd, "_harp.json"))
+            spinner.success('bower_dependencies')
 
         spinner.on 'done', =>
           callback()
@@ -57,7 +69,8 @@ module.exports =
     Git.Clone gitRepository, template_git_pwd, { checkoutBranch: "master" }
     .then (repository) ->
       callback()
-
+    .catch (e) -> 
+      console.log "Error during git clone: " + e
   prepareTemplateFolder: (externalCallback) ->
     async.series [
       (callback) =>
