@@ -1,5 +1,6 @@
 fs    = require "fs-extra"
-path  = require 'path'
+path  = require "path"
+watch = require "node-watch"
 NodePDF       = require "nodepdf"
 Multispinner  = require "multispinner"
 async = require "async"
@@ -33,6 +34,16 @@ nodePDFproperties =
         bottom: '0px'
   zoomFactor: 1
 
+fromDir = ""
+toDir = "" 
+reCopyFiles = (param1, param2) ->
+    console.log("File change detected")
+    console.log("action: " + param1)
+    console.log("file: " + param2)
+    if fs.existsSync(target_file)
+        fs.removeSync target_file
+    fs.copySync working_dir, target_file
+  
 module.exports =
   merge: false
   live: (sushiSet, loadToolbar, openBrowser, loadLiveReload, liveCallback) ->
@@ -90,7 +101,13 @@ module.exports =
         app.listen port, ->
           if loadLiveReload
             server = livereload.createServer({exts: ['md']})
-            server.watch(working_dir)
+            server.watch(if process.platform == 'win32' then target_file else working_dir)
+            console.log("Watching folder at " + if process.platform == 'win32' then target_file else working_dir)
+            # Watch the working_dir, in the callback, copy everything in working_dir to target_file
+            if process.platform == 'win32'
+                fromDir = working_dir
+                toDir = target_file
+                watch(working_dir, { recursive: true }, reCopyFiles)
 
           if openBrowser
             firstCard = sushiSet.cards[0]
